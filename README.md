@@ -13,6 +13,11 @@ The application models a pipe section and shows how operating conditions affect 
 
 It is designed for quick engineering review of how temperature, density, viscosity, and fluid selection shift both heat-transfer and pressure-drop behavior in a monitored pipe section.
 
+## Live App
+
+- Streamlit app: https://heat-pipe-agent-chyexxsoz3stixuifrneaf.streamlit.app/
+- GitHub repo: https://github.com/smallya70/Heat-Pipe-Agent
+
 ## Highlights
 
 - Preset fluids plus a custom manual mode
@@ -75,6 +80,40 @@ After launch, Streamlit will open the app in your browser, usually at:
 
 ```text
 http://localhost:8501
+```
+
+## Deploy On Streamlit Community Cloud
+
+Use the GitHub-backed deployment flow in Streamlit Community Cloud.
+
+Deployment values for this project:
+
+- repository: `smallya70/Heat-Pipe-Agent`
+- branch: `main`
+- main file path: `main.py`
+
+Steps:
+
+1. Sign in to Streamlit Community Cloud.
+2. Choose `New app`.
+3. Select the GitHub repository `smallya70/Heat-Pipe-Agent`.
+4. Set the branch to `main`.
+5. Set the main file path to `main.py`.
+6. Click deploy.
+
+If Streamlit does not detect the repository:
+
+- refresh the Streamlit Community Cloud page after pushing the latest commit
+- make sure the GitHub account connected to Streamlit can access the repository
+- make sure `main.py` is in the repository root
+- make sure `requirements.txt` is present in the repository root
+
+This repository already includes `requirements.txt` for deployment with:
+
+```text
+streamlit
+numpy
+matplotlib
 ```
 
 ## Inputs In The Dashboard

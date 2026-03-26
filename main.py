@@ -227,7 +227,7 @@ st.session_state.current_dp_for_sync = float(dp_calc)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Alert Setup")
-measured_dp = st.sidebar.number_input("Observed Pressure Drop ΔP (Pa)", key="measured_dp", step=10.0)
+measured_dp = st.sidebar.number_input("Instrument Pressure Drop ΔP (Pa)", key="measured_dp", step=10.0)
 st.sidebar.button("Sync Sensor To Current Model", on_click=sync_sensor_to_model)
 alert_reference_mode = st.sidebar.selectbox(
     "Alert Reference Mode",
@@ -260,8 +260,9 @@ st.sidebar.markdown(
     <tr><td><strong>Conductivity</strong></td><td style="text-align:right;">{k_dyn:.3f} W/m.K</td></tr>
   <tr><td><strong>Reynolds No.</strong></td><td style="text-align:right;">{re:,.0f}</td></tr>
   <tr><td><strong>Heat Transfer</strong></td><td style="text-align:right;">{q_calc:,.1f} W</td></tr>
-  <tr><td><strong>Pressure Drop</strong></td><td style="text-align:right;">{dp_calc:,.1f} Pa</td></tr>
-  <tr><td><strong>Measured ΔP</strong></td><td style="text-align:right;">{measured_dp:,.1f} Pa</td></tr>
+    <tr><td><strong>Modeled Pressure Drop</strong></td><td style="text-align:right;">{dp_calc:,.1f} Pa</td></tr>
+    <tr><td><strong>Instrument Pressure Drop</strong></td><td style="text-align:right;">{measured_dp:,.1f} Pa</td></tr>
+    <tr><td><strong>Pressure Gap</strong></td><td style="text-align:right;">{measured_dp - dp_calc:+,.1f} Pa</td></tr>
   <tr><td><strong>Alert Baseline ΔP</strong></td><td style="text-align:right;">{baseline_dp:,.1f} Pa</td></tr>
 </table>
 """,
@@ -290,7 +291,7 @@ comparison_rows = [
         "Modeled": f"{dp_calc:,.1f} Pa",
         "Active": f"{measured_dp:,.1f} Pa",
         "Delta": f"{measured_dp - dp_calc:+,.1f} Pa",
-        "Source": "Observed Sensor",
+        "Source": "Instrument Sensor",
     },
 ]
 
@@ -303,10 +304,11 @@ comparison_csv = comparison_csv_buffer.getvalue()
 
 st.title("🛡️ Agentic Monitor: Temperature & Density Impact")
 st.caption(f"Preset: {fluid_preset} | Active density: {rho_dyn:.1f} kg/m³ | Active viscosity: {mu_dyn:.6f} Pa·s")
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 col1.metric("Density (ρ)", f"{rho_dyn:.1f} kg/m³")
 col2.metric("Heat Transfer (Q)", f"{q_calc:,.1f} W")
 col3.metric("Reynolds (Re)", f"{re:,.0f}")
+col4.metric("Pressure Gap", f"{measured_dp - dp_calc:+,.1f} Pa")
 
 st.subheader("Fluid Properties Panel")
 st.caption(f"{fluid_preset} provides the base fluid properties at the selected temperature. Active density and viscosity sliders let you adjust the live operating state.")
@@ -419,7 +421,7 @@ else:
 st.subheader("Calculated Values")
 val1, val2, val3, val4 = st.columns(4)
 val1.metric("Viscosity (μ)", f"{mu_dyn:.6f} Pa·s")
-val2.metric("Pressure Drop (ΔP)", f"{dp_calc:,.1f} Pa")
+val2.metric("Modeled Pressure Drop", f"{dp_calc:,.1f} Pa")
 val3.metric("Specific Heat (Cp)", f"{cp_dyn:,.0f} J/kg.K")
 val4.metric("Conductivity (k)", f"{k_dyn:.3f} W/m.K")
 
@@ -439,7 +441,7 @@ st.pyplot(fig)
 st.subheader("Pressure Drop Diagnostic Curve")
 fig_dp, ax_dp = plt.subplots(figsize=(10, 4))
 ax_dp.plot(flow_range, dp_curve, color="darkorange", label="Modeled Pressure Drop")
-ax_dp.scatter([f_input], [measured_dp], color="red", s=80, label="Observed Pressure")
+ax_dp.scatter([f_input], [measured_dp], color="red", s=80, label="Instrument Pressure")
 ax_dp.scatter([f_input], [dp_calc], color="navy", s=60, label="Current Model")
 ax_dp.set_xlabel("Flow Rate (m³/s)")
 ax_dp.set_ylabel("Pressure Drop (Pa)")
