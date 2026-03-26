@@ -1,5 +1,7 @@
 # Heat Transfer Dashboard
 
+Industrial pipe-side digital twin for thermal and hydraulic monitoring with preset fluids, live property overrides, alert baselines, and diagnostic comparisons.
+
 This project is a Streamlit-based industrial pipe monitoring dashboard for evaluating:
 
 - pressure drop
@@ -8,6 +10,15 @@ This project is a Streamlit-based industrial pipe monitoring dashboard for evalu
 - baseline deviation alerts
 
 The application models a pipe section and shows how operating conditions affect Reynolds number, heat transfer rate, pressure drop, and pressure-alert status.
+
+It is designed for quick engineering review of how temperature, density, viscosity, and fluid selection shift both heat-transfer and pressure-drop behavior in a monitored pipe section.
+
+## Highlights
+
+- Preset fluids plus a custom manual mode
+- Always-visible active density and viscosity controls
+- Pressure baseline monitoring and virtual sensor comparison
+- CSV export for modeled-versus-active values
 
 ## Main Features
 

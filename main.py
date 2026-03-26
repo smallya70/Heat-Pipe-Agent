@@ -82,6 +82,8 @@ def sync_alert_baseline_to_model():
 
 st.sidebar.button("Reset To Default", on_click=reset_app_to_defaults)
 st.sidebar.button("Reset Fluid Properties", on_click=reset_fluid_properties)
+st.sidebar.markdown("---")
+st.sidebar.subheader("Process Inputs")
 f_input = st.sidebar.slider("Flow Rate (m³/s)", 0.0001, 0.01, 0.002, format="%.4f", key="f_input")
 d_input = st.sidebar.slider("Pipe Diameter (m)", 0.01, 0.15, 0.05, key="d_input")
 temp_input = st.sidebar.slider("Fluid Temp (°C)", 10, 100, 25, key="temp_input")
@@ -153,6 +155,9 @@ if "custom_base_cp" not in st.session_state:
 if "custom_base_k" not in st.session_state:
     st.session_state.custom_base_k = fluid_presets["Custom Manual"]["k"]
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("Fluid Setup")
+
 if fluid_preset == "Custom Manual":
     st.sidebar.markdown("**Custom Base Properties**")
     st.sidebar.slider("Base Density (kg/m³)", 600.0, 1400.0, key="custom_base_density", step=1.0, format="%.1f")
@@ -220,6 +225,8 @@ if "alert_baseline_dp" not in st.session_state:
     st.session_state.alert_baseline_dp = float(dp_calc)
 st.session_state.current_dp_for_sync = float(dp_calc)
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("Alert Setup")
 measured_dp = st.sidebar.number_input("Observed Pressure Drop ΔP (Pa)", key="measured_dp", step=10.0)
 st.sidebar.button("Sync Sensor To Current Model", on_click=sync_sensor_to_model)
 alert_reference_mode = st.sidebar.selectbox(
@@ -295,6 +302,7 @@ comparison_csv = comparison_csv_buffer.getvalue()
 
 
 st.title("🛡️ Agentic Monitor: Temperature & Density Impact")
+st.caption(f"Preset: {fluid_preset} | Active density: {rho_dyn:.1f} kg/m³ | Active viscosity: {mu_dyn:.6f} Pa·s")
 col1, col2, col3 = st.columns(3)
 col1.metric("Density (ρ)", f"{rho_dyn:.1f} kg/m³")
 col2.metric("Heat Transfer (Q)", f"{q_calc:,.1f} W")
