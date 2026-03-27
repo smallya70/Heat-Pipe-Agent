@@ -473,6 +473,50 @@ val3.metric("Specific Heat (Cp)", f"{cp_dyn:,.0f} J/kg.K")
 val4.metric("Conductivity (k)", f"{k_dyn:.3f} W/m.K")
 
 
+st.subheader("Pressure Drop & Heat Transfer Across Pipe Length")
+st.caption(
+    "Cumulative ΔP and Q from 0 → pipe length. In this simplified model, properties and boundary conditions "
+    "are assumed uniform, so ΔP and Q scale linearly with length."
+)
+
+length_axis = np.linspace(0.0, float(l_input), 120)
+_, q_len_curve, dp_len_curve = get_physics(
+    f_input,
+    d_input,
+    length_axis,
+    mu_dyn,
+    rho_dyn,
+    cp_dyn,
+    k_dyn,
+    temp_input,
+    temp_ambient,
+)
+
+q_per_m = (q_calc / l_input) if l_input > 0 else 0.0
+dp_per_m = (dp_calc / l_input) if l_input > 0 else 0.0
+
+len1, len2, len3, len4 = st.columns(4)
+len1.metric("Heat transfer rate", f"{q_per_m / 1000:,.3f} kW/m")
+len2.metric("Pressure drop rate", f"{dp_per_m / 1000:,.3f} kPa/m")
+len3.metric(energy_label + " (total)", f"{abs(q_calc) / 1000:,.2f} kW")
+len4.metric("Total ΔP", f"{dp_calc / 1000:,.2f} kPa")
+
+fig_len, (ax_q_len, ax_dp_len) = plt.subplots(1, 2, figsize=(10, 4))
+
+ax_q_len.plot(length_axis, q_len_curve / 1000, color="steelblue", linewidth=2)
+ax_q_len.set_xlabel("Pipe Length (m)")
+ax_q_len.set_ylabel("Cumulative Heat Transfer (kW)")
+ax_q_len.grid(True, alpha=0.25)
+
+ax_dp_len.plot(length_axis, dp_len_curve / 1000, color="darkorange", linewidth=2)
+ax_dp_len.set_xlabel("Pipe Length (m)")
+ax_dp_len.set_ylabel("Cumulative Pressure Drop (kPa)")
+ax_dp_len.grid(True, alpha=0.25)
+
+plt.tight_layout()
+st.pyplot(fig_len)
+
+
 flow_range = np.linspace(0.0001, 0.01, 100)
 re_curve, q_curve, dp_curve = get_physics(flow_range, d_input, l_input, mu_dyn, rho_dyn, cp_dyn, k_dyn, temp_input, temp_ambient)
 
