@@ -23,6 +23,7 @@ It is designed for quick engineering review of how temperature, density, viscosi
 - Preset fluids plus a custom manual mode
 - Always-visible active density and viscosity controls
 - Pressure baseline monitoring and virtual sensor comparison
+- Agentic anomaly detection against the physics baseline pressure drop (1% threshold)
 - CSV export for modeled-versus-active values
 
 ## Main Features
@@ -34,6 +35,9 @@ It is designed for quick engineering review of how temperature, density, viscosi
 - Reset fluid properties button
 - Pressure-drop alerting against a manual or current snapshot baseline
 - Virtual observed pressure sensor input
+- Agentic anomaly detection that compares the observed sensor ΔP to the modeled physics ΔP (`dp_calc`)
+  - Flags an anomaly when deviation is ≥ 1%
+  - Provides regime-aware reasoning (laminar vs turbulent)
 - Adjustable pipe length for total pressure-drop and heat-exchange scaling
 - Always-visible active density slider
 - Always-visible active viscosity slider
@@ -158,12 +162,16 @@ The dashboard reports:
 - total pressure drop based on current pipe length
 - deviation from baseline pressure drop
 - temperature and pressure alerts
+- physics-baseline health check (sensor ΔP vs modeled ΔP) with anomaly reasoning
 
 ## Notes
 
 - Surface roughness is calculated automatically from the current hydraulic state and displayed in microns for non-laminar flow in the current version.
 - Pressure drop and heat exchange scale with the current pipe length input.
 - Heat transfer is labeled as heat loss above ambient and heat gain below ambient, using a 20°C ambient reference.
+- The app includes two pressure comparisons:
+  - **Alert baseline**: compares the observed sensor ΔP to a user baseline (manual or snapshot) with a configurable threshold.
+  - **Physics baseline**: compares the observed sensor ΔP to the modeled ΔP (`dp_calc`) and flags an anomaly at **≥ 1%** deviation.
 - Custom Manual, Water, Light Oil, Heavy Oil, and Glycerin presets are available.
 - Specific heat is calculated from the current fluid temperature and then adjusted by density shift.
 - Thermal conductivity is calculated from the current fluid temperature and then adjusted by density shift.
