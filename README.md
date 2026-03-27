@@ -34,8 +34,10 @@ It is designed for quick engineering review of how temperature, density, viscosi
 - Reset fluid properties button
 - Pressure-drop alerting against a manual or current snapshot baseline
 - Virtual observed pressure sensor input
+- Adjustable pipe length for total pressure-drop and heat-exchange scaling
 - Always-visible active density slider
 - Always-visible active viscosity slider
+- Automatically calculated theoretical roughness in microns in the live summary
 - Density-correction enable/disable toggle
 - Flow regime indication: laminar, transition, turbulent
 - Fluid properties panel with temperature-baseline comparison
@@ -125,8 +127,8 @@ The sidebar lets you configure:
 - fluid preset
 - flow rate
 - pipe diameter
+- pipe length
 - fluid temperature
-- surface roughness
 - active density slider
 - active viscosity slider
 - density-correction toggle
@@ -152,12 +154,16 @@ The dashboard reports:
 - fluid property baseline deltas
 - heat transfer rate
 - pressure drop
+- heat gain or heat loss based on current pipe length and fluid-to-ambient temperature difference
+- total pressure drop based on current pipe length
 - deviation from baseline pressure drop
 - temperature and pressure alerts
 
 ## Notes
 
-- Surface roughness is user-adjustable in the current version.
+- Surface roughness is calculated automatically from the current hydraulic state and displayed in microns for non-laminar flow in the current version.
+- Pressure drop and heat exchange scale with the current pipe length input.
+- Heat transfer is labeled as heat loss above ambient and heat gain below ambient, using a 20°C ambient reference.
 - Custom Manual, Water, Light Oil, Heavy Oil, and Glycerin presets are available.
 - Specific heat is calculated from the current fluid temperature and then adjusted by density shift.
 - Thermal conductivity is calculated from the current fluid temperature and then adjusted by density shift.

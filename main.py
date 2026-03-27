@@ -43,8 +43,8 @@ st.markdown(
 def reset_app_to_defaults():
     st.session_state.f_input = 0.002
     st.session_state.d_input = 0.05
+    st.session_state.l_input = 10.0
     st.session_state.temp_input = 25
-    st.session_state.e_input = 0.000045
     st.session_state.fluid_preset = "Water"
     st.session_state.manual_density = 997.0
     st.session_state.manual_viscosity = 0.000890
@@ -86,11 +86,11 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("Process Inputs")
 f_input = st.sidebar.slider("Flow Rate (m³/s)", 0.0001, 0.01, 0.002, format="%.4f", key="f_input")
 d_input = st.sidebar.slider("Pipe Diameter (m)", 0.01, 0.15, 0.05, key="d_input")
+l_input = st.sidebar.slider("Pipe Length (m)", 1.0, 500.0, 10.0, key="l_input")
 temp_input = st.sidebar.slider("Fluid Temp (°C)", 10, 100, 25, key="temp_input")
-e_input = st.sidebar.slider("Surface Roughness (m)", 0.000001, 0.001, 0.000045, format="%.6f", key="e_input")
 
 
-L, Ti, Tw = 2.0, 20, 60
+temp_ambient = 20.0
 baseline_temp = 25.0
 fluid_presets = {
     "Custom Manual": {"mu": 0.050000, "rho": 900.0, "cp": 2200.0, "k": 0.145},
@@ -145,6 +145,19 @@ def get_severity_level(percent_value):
     return "high", f"High correction {percent_value:+.2f}%"
 
 
+def get_theoretical_roughness(flow, diameter, mu_val, rho_val):
+    area = np.pi * (diameter**2) / 4
+    velocity = flow / area
+    re = (rho_val * velocity * diameter) / mu_val
+    if re <= 2300 or rho_val <= 0:
+        return 0.0
+
+    friction_factor = 0.3164 / np.power(re, 0.25)
+    friction_velocity = velocity * np.sqrt(friction_factor / 8)
+    kinematic_viscosity = mu_val / rho_val
+    return max(0.0, (5.0 * kinematic_viscosity) / max(friction_velocity, 1e-12))
+
+
 fluid_preset = st.sidebar.selectbox("Fluid Preset", list(fluid_presets.keys()), key="fluid_preset")
 if "custom_base_density" not in st.session_state:
     st.session_state.custom_base_density = fluid_presets["Custom Manual"]["rho"]
@@ -196,28 +209,46 @@ max_density_correction_pct = max(abs(cp_density_delta_pct), abs(k_density_delta_
 cp_badge_class, cp_badge_text = get_severity_level(cp_density_delta_pct)
 k_badge_class, k_badge_text = get_severity_level(k_density_delta_pct)
 viscosity_shift_pct = ((mu_dyn - mu_temp) / mu_temp) * 100 if mu_temp > 0 else 0.0
+roughness_theoretical = get_theoretical_roughness(f_input, d_input, mu_dyn, rho_dyn)
+roughness_theoretical_microns = roughness_theoretical * 1_000_000
 
 
-def get_physics(flow, diameter, roughness, mu_val, k_val, rho_val, cp_val):
-    velocity = flow / (np.pi * (diameter**2) / 4)
+def get_physics(flow, diameter, length, mu_val, rho_val, cp_val, k_val, t_fluid, t_amb):
+    area = np.pi * (diameter**2) / 4
+    velocity = flow / area
     re = (rho_val * velocity * diameter) / mu_val
     pr = (mu_val * cp_val) / k_val
-
+    
+    # --- VECTORIZED HEAT TRANSFER ---
+    # np.where allows the charts to calculate 100 points at once without crashing
     nu = np.where(re > 4000, 0.023 * (re**0.8) * (pr**0.4), 3.66)
     h = (nu * k_val) / diameter
-    q = h * (np.pi * diameter * L) * (Tw - Ti)
-
-    re_safe = np.maximum(re, 1)
+    q = h * (np.pi * diameter * length) * (t_fluid - t_amb)
+    
+    # --- VECTORIZED FRICTION (Haaland Equation) ---
+    eps = 0.000045 # Standard Pipe Roughness
+    re_safe = np.maximum(re, 1) # Prevent division by zero
+    f_turb = (-1.8 * np.log10(((eps/diameter)/3.7)**1.11 + 6.9/re_safe))**-2
     f_lam = 64 / re_safe
-    term = ((roughness / diameter) / 3.7) ** 1.11 + 6.9 / re_safe
-    f_turb = (-1.8 * np.log10(np.maximum(term, 1e-12))) ** -2
     f = np.where(re > 2300, f_turb, f_lam)
-    dp = f * (L / diameter) * (rho_val * velocity**2 / 2)
-
+    
+    dp = f * (length / diameter) * (rho_val * velocity**2 / 2)
     return re, q, dp
 
 
-re, q_calc, dp_calc = get_physics(f_input, d_input, e_input, mu_dyn, k_dyn, rho_dyn, cp_dyn)
+re, q_calc, dp_calc = get_physics(
+    f_input,
+    d_input,
+    l_input,
+    mu_dyn,
+    rho_dyn,
+    cp_dyn,
+    k_dyn,
+    temp_input,
+    temp_ambient,
+)
+roughness_display = f"{roughness_theoretical_microns:,.2f} microns" if re > 2300 else "N/A (laminar)"
+energy_label = "Heat Loss" if q_calc >= 0 else "Heat Gain"
 
 if "measured_dp" not in st.session_state:
     st.session_state.measured_dp = float(dp_calc)
@@ -244,14 +275,16 @@ alert_threshold_pct = st.sidebar.slider("Alert Threshold (%)", 0.5, 10.0, 1.0, s
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📋 Live Parameter Summary")
+st.sidebar.caption("Surface roughness is auto-estimated for non-laminar flow and shown in microns.")
 st.sidebar.markdown(
     f"""
 <table style="width:100%; font-size:0.92rem; border-collapse:collapse;">
     <tr><td><strong>Fluid Preset</strong></td><td style="text-align:right;">{fluid_preset}</td></tr>
   <tr><td><strong>Flow Rate</strong></td><td style="text-align:right;">{f_input:.4f} m³/s</td></tr>
   <tr><td><strong>Pipe Diameter</strong></td><td style="text-align:right;">{d_input:.3f} m</td></tr>
+    <tr><td><strong>Pipe Length</strong></td><td style="text-align:right;">{l_input:.1f} m</td></tr>
   <tr><td><strong>Temperature</strong></td><td style="text-align:right;">{temp_input:.1f} °C</td></tr>
-  <tr><td><strong>Roughness</strong></td><td style="text-align:right;">{e_input:.6f} m</td></tr>
+        <tr><td><strong>Theoretical Roughness</strong></td><td style="text-align:right;">{roughness_display}</td></tr>
     <tr><td><strong>Modeled Density</strong></td><td style="text-align:right;">{rho_temp:.1f} kg/m³</td></tr>
   <tr><td><strong>Density</strong></td><td style="text-align:right;">{rho_dyn:.1f} kg/m³</td></tr>
     <tr><td><strong>Modeled Viscosity</strong></td><td style="text-align:right;">{mu_temp:.6f} Pa·s</td></tr>
@@ -306,9 +339,9 @@ st.title("🛡️ Agentic Monitor: Temperature & Density Impact")
 st.caption(f"Preset: {fluid_preset} | Active density: {rho_dyn:.1f} kg/m³ | Active viscosity: {mu_dyn:.6f} Pa·s")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Density (ρ)", f"{rho_dyn:.1f} kg/m³")
-col2.metric("Heat Transfer (Q)", f"{q_calc:,.1f} W")
+col2.metric(energy_label, f"{abs(q_calc) / 1000:,.2f} kW", delta=f"{deviation:.1f}% Friction Load")
 col3.metric("Reynolds (Re)", f"{re:,.0f}")
-col4.metric("Pressure Gap", f"{measured_dp - dp_calc:+,.1f} Pa")
+col4.metric("Total Pressure Drop", f"{dp_calc / 1000:,.2f} kPa")
 
 st.subheader("Fluid Properties Panel")
 st.caption(f"{fluid_preset} provides the base fluid properties at the selected temperature. Active density and viscosity sliders let you adjust the live operating state.")
@@ -418,16 +451,30 @@ else:
     st.success(f"✅ Pressure is within {alert_threshold_pct:.1f}% of the alert baseline.")
 
 
+# --- AGENTIC ANOMALY DETECTION ---
+st.markdown("---")
+physics_deviation = ((measured_dp - dp_calc) / dp_calc) * 100 if dp_calc > 0 else 0.0
+
+if abs(physics_deviation) >= 1.0:  # The 1% Threshold
+    st.error(f"🚨 ANOMALY: {physics_deviation:+.1f}% Pressure Deviation Detected.")
+    if re > 4000:
+        st.info("Agent Reasoning: Flow is Turbulent. High deviation suggests internal pipe fouling or scaling.")
+    else:
+        st.info("Agent Reasoning: Flow is Laminar. Deviation suggests a partial physical blockage or sensor drift.")
+else:
+    st.success("✅ SYSTEM HEALTHY: Sensor is within 1% of Physics Baseline.")
+
+
 st.subheader("Calculated Values")
 val1, val2, val3, val4 = st.columns(4)
 val1.metric("Viscosity (μ)", f"{mu_dyn:.6f} Pa·s")
-val2.metric("Modeled Pressure Drop", f"{dp_calc:,.1f} Pa")
+val2.metric("Modeled Pressure Drop", f"{dp_calc / 1000:,.2f} kPa")
 val3.metric("Specific Heat (Cp)", f"{cp_dyn:,.0f} J/kg.K")
 val4.metric("Conductivity (k)", f"{k_dyn:.3f} W/m.K")
 
 
 flow_range = np.linspace(0.0001, 0.01, 100)
-re_curve, q_curve, dp_curve = get_physics(flow_range, d_input, e_input, mu_dyn, k_dyn, rho_dyn, cp_dyn)
+re_curve, q_curve, dp_curve = get_physics(flow_range, d_input, l_input, mu_dyn, rho_dyn, cp_dyn, k_dyn, temp_input, temp_ambient)
 
 fig, ax = plt.subplots(figsize=(10, 4))
 ax.plot(flow_range, q_curve, color="steelblue", label="Heat Transfer")
